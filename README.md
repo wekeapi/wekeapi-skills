@@ -6,7 +6,11 @@ wekeapi 的 **Agent 技能包仓库**：面向支持 Agent Skill 的 Agent / Har
 
 ### 方式一：Harness 快速安装（推荐）
 
-把下面这段话发给支持 Agent Skill 的 Harness，它会自己装好：
+一句话版：（把这句话发给支持 Agent Skill 的 Harness，它会自己装好）
+```
+请从 github 仓库 https://github.com/wekeapi/wekeapi-skills.git 安装 wekeapi skills。
+```
+手把手指导版：
 ```
 安装 wekeapi skills：
 
@@ -55,3 +59,7 @@ wekeapi 的 **Agent 技能包仓库**：面向支持 Agent Skill 的 Agent / Har
 - **Agent 说找不到 `wekeapi`**：确认 `wekeapi-core/assets/bin/` 里存在当前平台的 `wekeapi-<os>-<arch>[.exe]`，且 Linux/macOS 已 `chmod +x`。
 - **AccessToken 在哪申请**：在 [wekeapi官网](https://www.wekeapi.com/) 注册并申请 AccessToken。
 - **登录时账号限额已用完**：请到 [wekeapi官网](https://www.wekeapi.com/) 领取免费体验包或购买服务套餐。
+
+## 支持
+
+请直接提 issue 或联系 `+v weke_820528`
