@@ -61,10 +61,9 @@ $WEKEAPI data contacts --label <标签名或标签ID> [--type friend] [--limit 1
 
 ## 注意
 
-- `list`/`brief` 从平台缓存读取：登录后平台自动同步一次；CLI 已内置 -43「通讯录同步进行中」自动重试（每次等 15s、约 60s 窗口，stderr 提示进度）。**若重试后仍持续 -43（平台同步任务卡死，可持续数小时/数天），补救手段是重新登录**：`login logout` → `login quick`（手机点确认），让平台开启一次全新的通讯录同步任务——实测重登后 1 分钟内 `contact list` 即恢复。新联系人在平台没更新时调 `sync` 强制更新。
+- `list`/`brief` 从平台缓存读取：登录后平台自动同步一次；CLI 已内置 -43「通讯录同步进行中」自动重试（每次等 15s、约 60s 窗口，stderr 提示进度）。**若重试后仍持续 -43，让用户联系客服(weke_820528)反馈**。新联系人在平台没更新时调 `sync` 强制更新。
 - `list` 只返回保存到通讯录的群聊；未保存的群需从消息推送自行判断并记录。
 - `add-friend` 的 `--scene`：1-QQ 2-邮箱 3-微信号 4-QQ好友 13-通讯录 14-群聊 15-手机号 30-二维码；`v3`/`v4` 来自 `contact search` 或群成员详情（`chatroom member-detail`）。若已是好友，search 结果的 V3 即好友 wxid。
 - 建议账号在线 3 天后再调 `add-friend`；添加成功会推送一条含 V3 的回调消息，可用于判断是否成功。
 - **`contact list --contact-type 4` 会返回 `-11 参数错误`**：该接口不支持企微类型；企微好友请用 `contact wework-list` / `contact wework-info`。
-- **备注无法清空**：`set-remark` 的平台接口对空备注返回 `-11 参数错误`；且在 Windows PowerShell 下无法向 `--remark` 传空串（空参被丢弃、`--remark=` 又被必填校验拒绝）。需要清空备注请在微信客户端操作。
-- **仅聊天无读回**：`set-chat-only` 返回 `code:0`，但 `brief`/`detail` 不返回仅聊天字段，无法用 API 二次确认，请以返回码为准。
+- **仅聊天权限无法查询**：`set-chat-only` 返回 `code:0` 表示设置成功。由于 `brief` 和 `detail` 均不返回“仅聊天”状态，设置后无法通过 API 再次查询确认，请以该返回码判断操作结果。
