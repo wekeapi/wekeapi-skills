@@ -27,7 +27,7 @@ wekeapi 的 **Agent 技能包仓库**：面向支持 Agent Skill 的 Agent / Har
 
 在 Harness 工具打开对话，告诉 AI “我要登录微信账号”，就可以开始和 AI 一起探索 wekeapi-skills 的功能
 - wekeapi-skills 基于 wekeapi 提供的微信连接能力
-- 使用过程中 AI 会提示你到 [wekeapi官网](https://www.wekeapi.com/) 申请 AccessToken、获取服务套餐（新人有15天免费体验包）；你也可以自行到 [wekeapi官网](https://www.wekeapi.com/) 注册并提前准备好，它们是登录账号的前提
+- 使用过程中 AI 会提示你到 [wekeapi官网](https://www.wekeapi.com/) 申请访问凭证、获取服务套餐（新人有15天免费体验包）；你也可以自行到 [wekeapi官网](https://www.wekeapi.com/) 注册并提前准备好，它们是登录账号的前提
 - 提前阅读 [wekeapi使用文档](https://doc.wekeapi.com/) 有助于你更好地理解 wekeapi 以便用好 wekeapi-skills
 
 ## 技能一览
@@ -57,7 +57,7 @@ wekeapi 的 **Agent 技能包仓库**：面向支持 Agent Skill 的 Agent / Har
 ## 常见问题
 
 - **Agent 说找不到 `wekeapi`**：确认 `wekeapi-core/assets/bin/` 里存在当前平台的 `wekeapi-<os>-<arch>[.exe]`，且 Linux/macOS 已 `chmod +x`。
-- **AccessToken 在哪申请**：在 [wekeapi官网](https://www.wekeapi.com/) 注册并申请 AccessToken。
+- **访问凭证在哪申请**：在 [wekeapi官网](https://www.wekeapi.com/) 注册并申请访问凭证。
 - **登录时账号限额已用完**：请到 [wekeapi官网](https://www.wekeapi.com/) 领取免费体验包或购买服务套餐。
 
 ## 支持
