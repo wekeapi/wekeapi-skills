@@ -8,7 +8,7 @@ description: wekeapi CLI label 模块：微信标签管理（获取标签列表�
 ## 前置
 
 - 二进制复用 wekeapi-core skill 的 `assets/bin/`（相对该 skill 目录解析，不要写死 skills 根目录），按 OS/架构选择（Windows x64: `wekeapi-windows-amd64.exe` / Windows ARM64: `wekeapi-windows-arm64.exe` / Linux x64: `wekeapi-linux-amd64` / Linux ARM64: `wekeapi-linux-arm64` / macOS Intel: `wekeapi-darwin-amd64` / macOS ARM: `wekeapi-darwin-arm64`），下文以 `$WEKEAPI` 代指；`PATH` 中已有 `wekeapi` 时优先用 `wekeapi`，定位与兜底见 wekeapi-core「二进制」。
-- 调用需 `--token` 与 `--app-id`（运行 `wekeapi init` 保存配置后可免传，显式 flag 优先）；stdout 恒为 JSON；退出码 0 成功 / 1 API 业务错误 / 2 本地错误。
+- 调用需 token（访问凭证，全部账号共用，`init` 保存后可免传）；**多账号时用 `--app-id` 指定本次操作的账号**（取值见 `wekeapi account list`），省略时用默认账号；stdout 恒为 JSON；退出码 0 成功 / 1 API 业务错误 / 2 本地错误。
 - 其余全局约定见 wekeapi-core skill。
 
 ## 命令表

@@ -1,6 +1,6 @@
 ---
 name: wekeapi-core
-description: wekeapi CLI 共享基础：CLI二进制位置、全局参数（--token/--app-id）、退出码与调用约定，数据同步服务（wekeapi-msg-sync）与 data 查询命令，并路由到 login/contact/chatroom/label/message/sns/proxy 各模块 skill。任何 wekeapi 微信任务开始前、或不确定该用哪个模块 skill 时使用。
+description: wekeapi CLI 共享基础：CLI二进制位置、全局参数（--token/--app-id/--msg-sync-dir）、多账号账号语义与 account 管理命令、退出码与调用约定，数据同步服务（wekeapi-msg-sync，单服务多账号）与 data 查询命令，并路由到 login/contact/chatroom/label/message/sns/proxy 各模块 skill。任何 wekeapi 微信任务开始前、或不确定该用哪个模块 skill 时使用。
 ---
 
 # wekeapi CLI 共享基础
@@ -11,7 +11,7 @@ wekeapi CLI 操作微信（wekeapi 微信协议 API）。全部参数走命令�
 
 预编译二进制随本 skill 包分发，位于**本 `SKILL.md` 所在目录**（即 `wekeapi-core/`）下的 `assets/bin/` 中，**无需源码、无需构建**。下文以 `$WEKEAPI` 代指 CLI 可执行文件。
 
-- **定位以本 skill 目录为基准，不要写死 skills 根目录**：`.trae/skills/`、`.qoder/skills/`、`.claude/skills/`、`~/.claude/skills/` 等由各 harness（IDE/Agent）自行约定，换 harness 或改配置后路径就不同；一律相对本 `SKILL.md` 所在目录解析。
+- **定位以本 skill 目录为基准，不要写死 skills 根目录**：`.trae/skills/`、`.qoder/skills/`、`.claude/skills/`、`~/.claude/skills/` 等由各 Agent 工具自行约定，换 Agent 或改配置后路径就不同；一律相对本 `SKILL.md` 所在目录解析。
 - **`$WEKEAPI` 取值顺序**：① 系统 `PATH` 中已有 `wekeapi`（`wekeapi --version` 可用）→ 直接用 `wekeapi`；② 否则用 `<本 skill 目录>/assets/bin/` 下对应平台的文件；③ 两处都不可用 → 停止执行，告知用户 skill 包可能不完整（`assets/bin/` 至少应有当前平台的 `wekeapi-<os>-<arch>[.exe]` 与 `wekeapi-msg-sync-<os>-<arch>[.exe]` 两个文件），**不要自行下载或猜测路径**。
 
 按 OS/架构选择（路径相对本 skill 目录）：
@@ -35,10 +35,12 @@ Linux/macOS 首次使用前执行一次 `chmod +x <对应路径>`。若 macOS �
 
 联系人/消息/群聊等业务数据由 `wekeapi-msg-sync` 服务统一接收回调、同步并存储，主 CLI 不再维护本地业务数据库。
 
-- **无需手工启动**：`login check` 登录成功（status=2）后，CLI 会自动把 token/appId/baseURL/wxid 写入服务目录的 `wekeapi-msg-sync.json`，并确保服务运行：先检测是否已启动，**已运行且凭证（token/appId/wxid/baseURL）无变化时保持不动、不重复启动**（避免打断进行中的全量同步）；仅未运行或凭证变化时才启动/重启；需要重新全量同步用 `data sync`。
+- **无需手工启动**：`login check` 登录成功（status=2）后，CLI 会自动把全部账号（token/appId/wxid）写入服务目录的 `wekeapi-msg-sync.json`，并确保服务运行：先检测是否已启动，**已运行且账号列表（token/appId/wxid/baseURL）无变化时保持不动、不重复启动**（避免打断进行中的全量同步）；仅未运行或账号有增减/变更时才启动/重启；需要重新全量同步用 `data sync`。
+- **一个服务承载多个账号**：所有已登录账号共用同一个 `wekeapi-msg-sync` 进程、同一个端口、同一个数据库，数据按账号 `appId` 分区（查询时服务按 `app_id` 过滤）。不要为每个账号单独建服务目录或端口。
+- **回调按 appId 分发**：服务配置里的 `accounts[]` 是账号白名单，回调里的 `appId` 命中哪个账号就写入哪个账号；未配置的 appId 会被忽略。多账号时回调缺少 `appId` 无法判断归属，也会被忽略。
 - **服务目录查找顺序**：全局参数 `--msg-sync-dir`（所有命令都可传，实际生效于 `data`/`login`/`message` 等需要读写服务的命令）> 环境变量 `WEKEAPI_MSG_SYNC_HOME` > `~/.wekeapi/config.json` 的 `msgSyncDir`（`init --msg-sync-dir` 可设置）> 默认 `~/.wekeapi/msg-sync`。配置 `wekeapi-msg-sync.json`、日志 `wekeapi-msg-sync.log`、PID 与 SQLite 数据库都在该目录（默认 `~/.wekeapi/msg-sync/`），不再跟随仓库/可执行文件目录。
 - **查询用 `data` 命令**（见下文），服务未运行时先 `$WEKEAPI data start`。
-- **数据库与端口可配置**：默认 SQLite（`~/.wekeapi/msg-sync/wekeapi_msg_sync.db`）、端口 `3006`（被占用时向上逐个递增查找可用端口，见 wekeapi-login「默认登录流程」第 4 步）；用 `$WEKEAPI data config --db sqlite --db-path <文件名> --port <端口>` 或 `$WEKEAPI data config --db mysql --db-dsn '<连接串>' --port <端口>` 设置（MySQL 库与表都由服务自动创建，`mysql://`、`jdbc:mysql://`、DSN 三种写法均可），改后 `$WEKEAPI data sync` 重启生效；不带参数只查看当前配置（不写文件）。
+- **数据库与端口可配置**：默认 SQLite（`~/.wekeapi/msg-sync/wekeapi_msg_sync.db`）、端口 `4000`（被占用时在 `4000-5000` 范围内向上逐个递增查找可用端口，见 wekeapi-login「默认登录流程」第 4 步）；用 `$WEKEAPI data config --db sqlite --db-path <文件名> --port <端口>` 或 `$WEKEAPI data config --db mysql --db-dsn '<连接串>' --port <端口>` 设置（MySQL 库与表都由服务自动创建，`mysql://`、`jdbc:mysql://`、DSN 三种写法均可），改后 `$WEKEAPI data sync` 重启生效；不带参数只查看当前配置（不写文件）。
 - **公网回调（需要接收消息时才引导）**：服务只被动接收回调（`POST /callback`，端口=服务端口），**不会自动向平台注册回调地址**。默认不接收消息、不弹框询问、不主动提醒；仅当用户提出接收消息/自动回复/实时监听等需求时才引导两步（见 wekeapi-login「接收消息与公网回调配置」）：① 把 `http://127.0.0.1:<端口>/callback` 映射到公网（端口映射/反向代理/安全组放行/frp、ngrok 等内网穿透）；② 到 wekeapi 管理后台（`env` 输出的 `siteURL`）把该访问凭证的回调地址设为 `http(s)://<公网地址>/callback`（路径必须 `/callback`，长度≤1024）。未配置时新消息不会实时入库、好友/群变更也不会更新（服务只在启动/重启时全量同步一次，可用 `data sync` 重新全量）。
 - **排查**：`$WEKEAPI data status` 查看同步状态与数据量；服务日志在 `~/.wekeapi/msg-sync/wekeapi-msg-sync.log`。
 
@@ -50,7 +52,7 @@ Linux/macOS 首次使用前执行一次 `chmod +x <对应路径>`。若 macOS �
 
 - 一次弹框可含 1-4 个互不依赖的问题；**有依赖关系的必须分开弹**：上一框答复后再弹下一框（例如选了 MySQL 才弹 URI 输入，拿到 URI 再弹端口）。
 - 自由文本（访问凭证、MySQL 连接 URI、代理 Url/代理 ID）用「粘贴 / 自定义」选项引导用户选 `Other` 输入，问题描述里给出格式示例。
-- 数字/枚举类（端口、数据库类型、登录平台、代理方式）给出常用取值选项（端口首选 `3006`）+ `Other` 自定义，推荐项排首位。
+- 数字/枚举类（端口、数据库类型、登录平台、代理方式）给出常用取值选项（端口首选 `4000`）+ `Other` 自定义，推荐项排首位。
 - 用户在弹框里选「还没有 / 去申请」这类选项时，先展示获取方式（如官网地址取 `$WEKEAPI env` 的 `siteURL`）并等待，拿到答复后再弹框收集。
 - 弹框提交的答案即用户确认，直接执行命令，**不要再用聊天追问**；已经答过的项不要重复弹框。
 - token 等敏感值只用于命令执行；后续回复与 JSON 中脱敏展示，不要写入聊天记录或临时文件。
@@ -58,32 +60,41 @@ Linux/macOS 首次使用前执行一次 `chmod +x <对应路径>`。若 macOS �
 
 ## 初始化配置（推荐）
 
-`$WEKEAPI init --token <访问凭证> [--app-id <appId>]`：将凭证保存到 `~/.wekeapi/config.json`，之后所有命令自动读取，可免传 `--token`/`--app-id`（显式 flag 优先于配置文件）。访问凭证请到官网申请（官网地址运行 `$WEKEAPI env` 查 `siteURL`；新账号可在官网领取 15 天免费体验或购买套餐）；无配置时引导用户申请访问凭证并执行本命令保存，不要让用户逐次重复提供 token。API 地址由编译环境内置，init 不收集、用户无需提供 baseUrl。
+`$WEKEAPI init --token <访问凭证> [--app-id <appId>]`：把**默认访问凭证**保存到 `~/.wekeapi/config.json`，之后所有命令自动读取，可免传 `--token`（显式 flag 优先）。访问凭证请到官网申请（官网地址运行 `$WEKEAPI env` 查 `siteURL`；新账号可在官网领取 15 天免费体验或购买套餐）；无配置时引导用户申请访问凭证并执行本命令保存，不要让用户逐次重复提供 token。API 地址由编译环境内置，init 不收集、用户无需提供 baseUrl。
 
 **两种运行方式**：
 - 交互向导（用户在终端直接运行 `wekeapi init`）：提示输入访问凭证（已有配置时回车保留）；提示走 stderr。
 - 自动化（skill/agent，stdin 非交互终端）：CLI 不会提示。**收集顺序固定：用 `AskUserQuestion` 弹框索取访问凭证（选项「粘贴访问凭证（选 `Other`）」/「还没有，去官网申请」，申请地址取 `env` 输出的 `siteURL`），拿到后执行 `init --token <TOKEN>` 保存**。禁止让用户在聊天框里回复 token。
 
 - **环境信息（编译期内置）**：二进制默认内置线上环境。运行 `$WEKEAPI env`（无需凭证）查看：`env` 环境名、`baseURL` 默认 API 地址、`siteURL` 官网、`proxyDownloads` 各平台本地代理工具下载地址（Linux 含一键安装命令）。**skill 中任何地址都从这里现查，不要硬编码**。
-- **本地数据目录**：主 CLI 只保存配置文件 `~/.wekeapi/config.json`（`token`/`appId`/`baseURL`/`wxid`/可选的 `msgSyncDir`），**不再维护本地业务数据库**。`wxid` 在登录成功/`login status` 返回个人信息时自动记录；联系人、消息、群聊与标签由 `wekeapi-msg-sync` 服务存储（默认 SQLite，可配置 MySQL），服务配置位于 `~/.wekeapi/msg-sync/wekeapi-msg-sync.json`，由登录成功自动写入。旧版 `~/.wekeapi.json` 仍可只读兼容，首次保存后迁移到 `~/.wekeapi/config.json`。
-- `--token` 必填（访问凭证请到官网申请，`$WEKEAPI env` 查 `siteURL`）；`--app-id` 首次登录可为空，省略时保留配置中已有值，显式清空用 `--app-id=`（等号空值语法；**不要写 `--app-id ""`**），新设备登录也可用 `login qr --new-device`。
-- `--base-url` 一般无需传：API 地址由编译环境内置（`$WEKEAPI env` 查 `baseURL`），仅临时指向其他地址时才显式传入。
-- appId 仅在登录成功（`login check` 返回 status=2）后自动写入配置（连同 wxid），`login qr` 阶段不保存；后续命令可用 `login status` 先检查在线状态再操作，**检测到离线（-1）时优先用 `login status --auto-connect` 尝试重连**，重连无效再走登录流程。
+- **本地配置（多账号）**：`~/.wekeapi/config.json` 结构为 `token`（访问凭证，**全部账号共用**）、`activeAppId`（默认账号）、`accounts[]`（每个账号的 `appId`/`wxid`/`nickname`/`alias`）、`baseURL`、可选的 `msgSyncDir`。主 CLI **不再维护本地业务数据库**；联系人、消息、群聊与标签由 `wekeapi-msg-sync` 服务存储（默认 SQLite，可配置 MySQL），服务配置位于 `~/.wekeapi/msg-sync/wekeapi-msg-sync.json`，由登录成功自动写入。旧版单账号配置（顶层 `appId`/`wxid`）会自动迁移到 `accounts[]`。
+- `--token` 为访问凭证（访问凭证请到官网申请，`$WEKEAPI env` 查 `siteURL`）；**一个 token 管理全部账号**，更换凭证时重新运行 `wekeapi init --token <新TOKEN>`（影响所有账号），不支持账号级独立凭证。
+- **`--app-id` 是账号选择器**：多账号时用它指定本次操作的账号（取值见 `account list`），同时作为请求里的设备 appId；省略时使用 `activeAppId`，仅一个账号时自动使用。多账号且没有默认账号时，业务命令会提示用 `--app-id` 指定。
+- appId 仅在登录成功（`login check` 返回 status=2）后自动写入对应账号，`login qr` 阶段不保存；后续命令可用 `login status` 先检查在线状态再操作，**检测到离线（-1）时优先用 `login status --auto-connect` 尝试重连**，重连无效再走登录流程。
 - 输出 JSON 中 token 已脱敏；配置文件权限 0600。
+
+## 账号管理（多账号）
+
+- 查看本机已登录账号与默认账号：`$WEKEAPI account list`，返回 `data.activeAppId`、`data.token`（共用 token 脱敏）与 `data.accounts[]`（`appId`/`wxid`/`nickname`/`alias`）。
+- 设置默认账号：`$WEKEAPI account use --app-id <appId>`（账号必须已登录）。
+- 用户提到某个微信号/昵称时，先 `account list` 找到对应 appId，再在所有业务命令上带 `--app-id <appId>`；用户未指定账号时用 `activeAppId`，不要自行猜测。
+- 登录新账号不会覆盖已有账号；同一 wxid 换新设备登录后只保留最新 appId（CLI 自动去重并设为默认）。
 
 ## 全局参数（所有命令可用）
 
 | 参数 | 说明 | 默认值 |
 |---|---|---|
-| `--token` | 访问凭证（**必填**，映射 `X-Access-Token` 请求头；可 `init` 保存后免传） | — |
-| `--app-id` | 设备 appId（除 `login qr` 外必填，自动写入 body 的 `appId`；可 `init` 保存后免传） | — |
+| `--token` | 访问凭证（全部账号共用，映射 `X-Access-Token` 请求头） | 配置中的 token |
+| `--app-id` | **账号选择器 + 设备 appId**：多账号时指定本次操作的账号（取值见 `account list`），自动写入 body 的 `appId`；省略时用 `activeAppId`，仅一个账号时自动使用 | `activeAppId` |
 | `--base-url` | API 基础地址（一般无需传，编译环境内置） | 编译环境决定（`$WEKEAPI env` 查询） |
 | `--timeout` | HTTP 超时，大文件上传调大如 `--timeout 10m` | `60s` |
 | `--pretty` | 缩进输出 JSON | 关闭 |
 | `--data` | 直接指定请求 JSON body：传 JSON 字符串或 `@文件路径`（Windows 建议 `@文件`，引号易被 shell 剥离）；与命令自带参数合并，同名字段以命令参数为准；传完整接口响应（含 `code`/`data`）时自动取其中的 `data` 作 body | — |
 | `--msg-sync-dir` | `wekeapi-msg-sync` 服务目录（含 `wekeapi-msg-sync.json`、日志、PID 与 SQLite）；全局参数，实际生效于 `data`/`login`/`message` 等命令；省略时按环境变量 > 配置 `msgSyncDir` > 默认目录查找 | — |
 
-- 凭证由用户提供（访问凭证请到官网申请，`$WEKEAPI env` 查 `siteURL`；缺 token 时按「交互输入规范」弹框收集）；若用户已通过 `init` 保存配置则免传 `--token`/`--app-id`，显式 flag 优先于配置文件；无配置时先引导用户申请并执行 `init` 保存，不要让用户逐次重复提供 token。
+- 凭证由用户提供（访问凭证请到官网申请，`$WEKEAPI env` 查 `siteURL`；缺 token 时按「交互输入规范」弹框收集）；若用户已通过 `init` 保存配置则免传 `--token`，显式 flag 优先于配置文件；无配置时先引导用户申请并执行 `init` 保存，不要让用户逐次重复提供 token。
+- token 优先级：显式 `--token` > 配置 token（全部账号共用，无账号级独立凭证）。
+- 多账号时业务命令必须能唯一确定账号：用户点名账号就用 `--app-id`；否则用 `activeAppId`；没有默认账号时按提示让用户选择，**不要猜测账号**。
 - 不确定参数时先运行 `$WEKEAPI <模块> <命令> --help`，help 内含必填项、枚举值与注意事项。
 
 ## 输出与退出码
@@ -118,9 +129,10 @@ Linux/macOS 首次使用前执行一次 `chmod +x <对应路径>`。若 macOS �
   ```
 
 - `data` 命令输出与其他命令一致：`{"code":0,"message":"OK","data":{...}}`；`data.contacts[].id` 即 wxid。
+- **多账号数据隔离**：所有数据都按账号 `appId` 分开存储。`data` 查询会自动带上当前账号（未指定时用 `activeAppId`；多账号且未指定时 CLI 会提示用 `--app-id`），所以要先确认查询的是哪个账号；不同账号的联系人/消息/群聊不会混在一起。
 - 按标签找联系人：`$WEKEAPI data contacts --label <标签名或标签 ID> [--type friend]`，多个标签逗号分隔表示「同时具备」（详见 wekeapi-contact）。
 - 其他数据查询：`data messages`（消息，**同时包含收到的消息与本人发出的消息**：`from` 等于本人 wxid 即自己发出）、`data rooms`（群聊）、`data status`（同步状态与数据量）。
-- 数据库与服务端口：`data config`（不带参数查看当前值；`--db sqlite --port <端口>` 或 `--db mysql --db-dsn <连接串> --port <端口>` 修改，MySQL 库不存在会自动创建），改后 `data sync` 重启生效；默认 SQLite/3006（端口占用时向上递增），默认登录流程不询问，**仅用户要求自定义时才弹框收集**（见 wekeapi-login「个性化登录」），会话内已确认的配置后续沿用不再询问。
+- 数据库与服务端口：`data config`（不带参数查看当前值；`--db sqlite --port <端口>` 或 `--db mysql --db-dsn <连接串> --port <端口>` 修改，MySQL 库不存在会自动创建），改后 `data sync` 重启生效；默认 SQLite/4000（端口占用时在 4000-5000 内向上递增），默认登录流程不询问，**仅用户要求自定义时才弹框收集**（见 wekeapi-login「个性化登录」），会话内已确认的配置后续沿用不再询问。
 - 服务未运行时先 `$WEKEAPI data start`；需要触发全量同步时 `$WEKEAPI data sync`（重启服务，启动后自动全量同步）。启动/重启后默认不询问是否接收消息；用户需要接收消息时再引导回调配置（wekeapi-login「接收消息与公网回调配置」）。
 - 平台还在同步通讯录时（`-43 通讯录同步进行中`）服务会自动等待重试（30 次 × 15 秒，约 7.5 分钟），通讯录人多时 `syncing` 持续几分钟属正常。
 - 数据可能因平台同步延迟而缺失（如刚加的好友），可先 `data sync` 刷新再查；**不要把空结果直接当「联系人不存在」**。
@@ -129,9 +141,10 @@ Linux/macOS 首次使用前执行一次 `chmod +x <对应路径>`。若 macOS �
 
 | 任务 | 使用 skill |
 |---|---|
-| 初始化配置（保存 token/appId 到 `~/.wekeapi/config.json`） | wekeapi-core（`init` 命令） |
+| 初始化配置（保存默认 token 到 `~/.wekeapi/config.json`） | wekeapi-core（`init` 命令） |
+| 查看/设置本地多账号（`account list` / `account use --app-id`） | wekeapi-core（`account` 命令） |
 | 查看内置环境信息（环境名、内置 API 地址、官网、代理工具下载地址，无需凭证） | wekeapi-core（`env` 命令） |
-| 扫码登录（默认零配置：Mac/自动验证/本地代理；个性化按用户明确项、未提出走默认）/ 登录状态轮询 / 在线检查 / 快捷登录（调用后必须提示用户到手机点确认登录）/ 退出登录 / 登录问题解答 / 登录成功自动启动数据同步服务（默认 SQLite/3006，端口占用自动递增） | wekeapi-login |
+| 扫码登录（默认零配置：Mac/自动验证/本地代理；个性化按用户明确项、未提出走默认）/ 登录状态轮询 / 在线检查 / 快捷登录（调用后必须提示用户到手机点确认登录）/ 退出登录 / 登录问题解答 / 登录成功自动启动数据同步服务（默认 SQLite/4000，端口占用自动递增） | wekeapi-login |
 | 查询联系人/消息/群聊/同步状态（`data contacts/messages/rooms/status`）、设置数据库与端口（`data config`）、启动/停止/重启数据同步服务（需要接收消息时才引导配置公网 callback 回调地址） | wekeapi-core（`data` 命令） |
 | 通讯录 / 好友增删查 / 搜索加好友 / 备注 / 企微好友 / 手机通讯录 | wekeapi-contact |
 | 群聊（建群、拉人踢人、群主管理员、公告、群名、二维码、拍一拍、解散退出） | wekeapi-chatroom |

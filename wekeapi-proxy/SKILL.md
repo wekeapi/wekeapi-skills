@@ -8,7 +8,7 @@ description: wekeapi CLI proxy 模块：微信设备代理管理（省市列表�
 ## 前置
 
 - 二进制复用 wekeapi-core skill 的 `assets/bin/`（相对该 skill 目录解析，不要写死 skills 根目录），按 OS/架构选择（Windows x64: `wekeapi-windows-amd64.exe` / Windows ARM64: `wekeapi-windows-arm64.exe` / Linux x64: `wekeapi-linux-amd64` / Linux ARM64: `wekeapi-linux-arm64` / macOS Intel: `wekeapi-darwin-amd64` / macOS ARM: `wekeapi-darwin-arm64`），下文以 `$WEKEAPI` 代指；`PATH` 中已有 `wekeapi` 时优先用 `wekeapi`，定位与兜底见 wekeapi-core「二进制」。
-- `provinces`/`cities` 为本地查询命令，**无需 `--token`/`--app-id`**；其余命令需 `--token` 与 `--app-id`（运行 `wekeapi init` 保存配置后可免传，显式 flag 优先）。
+- `provinces`/`cities` 为本地查询命令，**无需 `--token`/`--app-id`**；其余命令需 token（访问凭证，全部账号共用，`init` 保存后可免传），**多账号时用 `--app-id` 指定操作的账号**（取值见 `wekeapi account list`），省略时用默认账号。
 - stdout 恒为 JSON；退出码 0 成功 / 1 API 业务错误 / 2 本地错误。
 - 其余全局约定见 wekeapi-core skill。
 
@@ -33,7 +33,7 @@ description: wekeapi CLI proxy 模块：微信设备代理管理（省市列表�
    - `data=false`：**当前城市没有可用代理 → 提示用户切换其他代理方式（local/self），终止 platform 流程**。
 4. （在线设备改代理时）设置代理：`$WEKEAPI proxy set --token T --app-id A --proxy-type platform --proxy-info <code>`。
 
-**app-id 说明**：配置中已有 appId 时免传（自动读取）；**首次登录前无 appId** 时，用 `--app-id=` 显式传空 appId 调用 `check-city`（接口实测接受，检测结果与携带真实 appId 一致），不要为了检测先跑 `login qr`。（等号空值语法避免 shell 传空字符串；**不要写 `--app-id ""`**——Windows PowerShell 5.1 会丢弃空参数，导致 `--app-id` 吞掉后面的 flag 并报 `-50`。）
+**app-id 说明**：多账号时 `--app-id` 用于选择本次操作的账号；只有一个账号或已设置默认账号时可省略（自动读取 `activeAppId`）。**首次登录前无 appId** 时，用 `--app-id=` 显式传空 appId 调用 `check-city`（接口实测接受，检测结果与携带真实 appId 一致），不要为了检测先跑 `login qr`。（等号空值语法避免 shell 传空字符串；**不要写 `--app-id ""`**——Windows PowerShell 5.1 会丢弃空参数，导致 `--app-id` 吞掉后面的 flag 并报 `-50`。）
 
 ## 注意
 

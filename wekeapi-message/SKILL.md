@@ -8,7 +8,7 @@ description: wekeapi CLI message 模块：微信消息发送（文本/图片/视
 ## 前置
 
 - 二进制复用 wekeapi-core skill 的 `assets/bin/`（相对该 skill 目录解析，不要写死 skills 根目录），按 OS/架构选择（Windows x64: `wekeapi-windows-amd64.exe` / Windows ARM64: `wekeapi-windows-arm64.exe` / Linux x64: `wekeapi-linux-amd64` / Linux ARM64: `wekeapi-linux-arm64` / macOS Intel: `wekeapi-darwin-amd64` / macOS ARM: `wekeapi-darwin-arm64`），下文以 `$WEKEAPI` 代指；`PATH` 中已有 `wekeapi` 时优先用 `wekeapi`，定位与兜底见 wekeapi-core「二进制」。
-- 调用需 `--token` 与 `--app-id`（运行 `wekeapi init` 保存配置后可免传，显式 flag 优先）；stdout 恒为 JSON；退出码 0 成功 / 1 API 业务错误 / 2 本地错误。
+- 调用需 token（访问凭证，全部账号共用，`init` 保存后可免传）；**多账号时用 `--app-id` 指定本次操作的账号**（取值见 `wekeapi account list`），省略时用默认账号；stdout 恒为 JSON；退出码 0 成功 / 1 API 业务错误 / 2 本地错误。
 - `--to-wxid` 好友、群通用（群 ID 形如 `12345@chatroom`）。其余全局约定见 wekeapi-core skill。
 - 用户给的是微信号/昵称/备注而非 wxid 时，先用 `$WEKEAPI data contacts --keyword <关键词>` 解析（`data.contacts[].id` 即 wxid），查不到再调远端接口；**不要再用 sqlite3 查本地数据库**。
 - **消息由 wekeapi-msg-sync 统一存储**：服务接收消息回调并落库；CLI 发送/转发成功后也会把消息上报落库。查询聊天记录用 `$WEKEAPI data messages`（`--conversation-id S:<wxid>|R:<roomid>`、`--keyword`、`--start-time`/`--end-time`、`--page`/`--limit`），返回 `data.messages[]`（含 `new_msg_id`/`from`/`to`/`room_id`/`content`/`create_time`/`revoked`），`from` 等于自己即本人发出。
@@ -37,7 +37,7 @@ description: wekeapi CLI message 模块：微信消息发送（文本/图片/视
 - `oriMsgId ← newMsgId`
 - `oriMsgSourceBase64 ← msgSourceBase64`
 - `oriMsgTo ← 响应中的 toWxid`（原接收人）
-- `oriMsgFrom ← 当前账号 wxid`（取配置 `~/.wekeapi/config.json`）
+- `oriMsgFrom ← 当前账号 wxid`（取所选账号记录，由 `--app-id` 决定）
 
 因此通常**只需再补 `--to-wxid` 指定新接收人**（显式 flag 优先于 `--data`）。若响应用 `jq .data` 只存了内层对象，也同样可用。
 
